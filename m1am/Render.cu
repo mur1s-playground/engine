@@ -305,12 +305,15 @@ __global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int c
 			cosf(theta + camera_orientation[0]),
 		};
 
+		bool entity_found = false;
+		bool entity_hit = false;
 		for (int x = -1; x < 1; x++) {
 			for (int y = -1; y < 1; y++) {
 				if (image_src_x + x >= 0 && image_src_x + x < camera_resolution[0] / 5 && image_src_y + y >= 0 && image_src_y + y < camera_resolution[1] / 5) {
-					unsigned int entity_id = image_d_ray[image_src_y * (camera_resolution[0] / 5) * 2 + image_src_x * 2];
-					unsigned int triangle_id = image_d_ray[image_src_y * (camera_resolution[0] / 5) * 2 + image_src_x * 2 + 1];
+					unsigned int entity_id = image_d_ray[(image_src_y +y) * (camera_resolution[0] / 5) * 2 + (image_src_x +x )* 2];
+					unsigned int triangle_id = image_d_ray[(image_src_y + y)* (camera_resolution[0] / 5) * 2 + (image_src_x + x)* 2 + 1];
 					if (entity_id < UINT_MAX) {
+						entity_found = true;
 						struct entity* entities = (struct entity*)&bf_static[entities_static_position];
 
 						struct entity* entity_current = &entities[entity_id];
@@ -422,6 +425,7 @@ __global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int c
 							continue;
 						}
 
+						entity_hit = true;
 						r += lambda;
 
 						closest = r;
@@ -434,7 +438,141 @@ __global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int c
 				}
 			}
 		}
+		if (entity_found && !entity_hit) {
+			for (int x = -2; x < 2; x++) {
+				for (int y = -2; y < 2; y++) {
+					if (x == 0 && y == 0) continue;
+					if (image_src_x + x*2 >= 0 && image_src_x + x*2 < camera_resolution[0] / 5 && image_src_y + y*2 >= 0 && image_src_y + y*2 < camera_resolution[1] / 5) {
+						unsigned int entity_id = image_d_ray[(image_src_y +y*2) * (camera_resolution[0] / 5) * 2 + (image_src_x + x*2)* 2];
+						unsigned int triangle_id = image_d_ray[(image_src_y +y*2)* (camera_resolution[0] / 5) * 2 + (image_src_x + x*2)* 2 + 1];
+						if (entity_id < UINT_MAX) {
+							entity_found = true;
+							struct entity* entities = (struct entity*)&bf_static[entities_static_position];
 
+							struct entity* entity_current = &entities[entity_id];
+
+							vector3<float> oc = camera_position - entity_current->position;
+							float a = dot(camera_ray_orientation, camera_ray_orientation);
+							float b = 2.0 * dot(oc, camera_ray_orientation);
+							float c = dot(oc, oc) - (entity_current->radius * entity_current->radius);
+							float discriminant = b * b - 4 * a * c;
+							float lambda = 0;
+							if (discriminant < 0) {
+								continue;
+							}
+							else {
+								lambda = (-b - sqrt(discriminant)) / (2.0 * a);
+							}
+
+							if (isnan(lambda)) {
+								continue;
+							}
+
+							vector3<float> r_intersect = camera_position - -(camera_ray_orientation * lambda);
+
+							struct vector3<float>* triangles_static = (struct vector3<float> *) & bf_static[triangles_static_position];
+							struct vector3<float>* triangles = &triangles_static[entity_current->triangles_id];
+
+							struct grid* triangle_static_grid = (struct grid*)&bf_static[entity_current->triangles_grid_id + 1];
+
+							vector3<float> tg_grid_pos = r_intersect - entity_current->position;
+
+							vector3<float> scale_rot = entity_current->scale;
+							scale_rot = rotate_x(scale_rot, entity_current->orientation[0]);
+							scale_rot = rotate_y(scale_rot, entity_current->orientation[1]);
+							scale_rot = rotate_z(scale_rot, entity_current->orientation[2]);
+							scale_rot = {
+								abs(scale_rot[0]),
+								abs(scale_rot[1]),
+								abs(scale_rot[2]),
+							};
+
+							tg_grid_pos = { tg_grid_pos[0] / scale_rot[0], tg_grid_pos[1] / scale_rot[1], tg_grid_pos[2] / scale_rot[2] };
+
+							vector3<float> tg_grid_dir = {
+								camera_ray_orientation[0] / scale_rot[0],
+								camera_ray_orientation[1] / scale_rot[1],
+								camera_ray_orientation[2] / scale_rot[2]
+							};
+
+							tg_grid_pos = rotate_x(tg_grid_pos, entity_current->orientation[0]);
+							tg_grid_dir = rotate_x(tg_grid_dir, entity_current->orientation[0]);
+
+							tg_grid_pos = rotate_y(tg_grid_pos, entity_current->orientation[1]);
+							tg_grid_dir = rotate_y(tg_grid_dir, entity_current->orientation[1]);
+
+							tg_grid_pos = rotate_z(tg_grid_pos, entity_current->orientation[2]);
+							tg_grid_dir = rotate_z(tg_grid_dir, entity_current->orientation[2]);
+
+							vector3<float> u, v, n, dir, from, w0, w;
+							float r;
+
+							dir = tg_grid_dir;
+
+							vector3<float> t0 = triangles[triangle_id * 3];
+							vector3<float> t1 = triangles[triangle_id * 3 + 1];
+							vector3<float> t2 = triangles[triangle_id * 3 + 2];
+
+							u = t1 - t0;
+							v = t2 - t0;
+							n = cross(u, v);
+
+							from = tg_grid_pos;
+
+							w0 = from - t0;
+
+							a = -1 * dot(n, w0);
+							b = dot(n, dir);
+							if (fabs(b) < 0.00000001) {
+								if (a == 0) {
+									continue;
+								}
+								else {
+									continue;
+								}
+							}
+							r = a / b;
+
+							if (r + lambda < 0.0 || r + lambda >= closest) {
+								continue;
+							}
+
+							vector3<float> Il(from[0] + r * dir[0], from[1] + r * dir[1], from[2] + r * dir[2]);
+							float uu, uv, vv, wu, wv, D;
+
+							uu = dot(u, u);
+							uv = dot(u, v);
+							vv = dot(v, v);
+
+							w = Il - t0;
+							wu = dot(w, u);
+							wv = dot(w, v);
+							D = uv * uv - uu * vv;
+							float s, ts;
+							s = (uv * wv - vv * wu) / D;
+							if (s < 0.0 || s > 1.0) {
+								continue;
+							}
+							ts = (uv * wu - uu * wv) / D;
+							if (ts < 0.0 || (s + ts) > 1.0) {
+								continue;
+							}
+
+							entity_hit = true;
+							r += lambda;
+
+							closest = r;
+							closest_id_entity = entity_id;
+							closest_id_triangle = triangle_id;
+							closest_id_s = s;
+							closest_id_ts = ts;
+							closest_id_texture_map = entity_current->texture_map_id;
+						}
+					}
+				}
+			}
+		}
+		
 		if (closest < FLT_MAX) {
 			struct entity* entities = (struct entity*)&bf_static[entities_static_position];
 
@@ -505,7 +643,7 @@ void render_launch(		const unsigned int* bf_dynamic, const unsigned int cameras_
 		triangles_static_position, triangles_static_grid_position,
 		textures_map_static_position, textures_static_position);
 
-	
+	/*
 	cudaStreamSynchronize(cuda_streams[3]);
 	
 	err = cudaGetLastError();
@@ -514,6 +652,7 @@ void render_launch(		const unsigned int* bf_dynamic, const unsigned int cameras_
 		fprintf(stderr, "Failed to launch render kernel (error code %s)!\n", cudaGetErrorString(err));
 		exit(EXIT_FAILURE);
 	}
+	*/
 	//cudaDeviceSynchronize();
 	
 }
