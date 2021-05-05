@@ -128,8 +128,8 @@ void players_render() {
 		unsigned int camera_id = players_section_layer[ss];
 		struct camera* c = &cameras[camera_id];
 
-		render_launch(bf_dynamic.device_data[0], cameras_position_in_bf, player_squadsize, camera_id,
-			level_current->bf_static.device_data[0], level_current->entities_static_pos, level_current->entities_static_grid_pos,
+		render_launch(bf_dynamic.device_data[0], cameras_position_in_bf, player_squadsize, camera_id, bf_dynamic_m.entity_grid_position_in_bf, bf_dynamic_m.entities_dynamic_position_in_bf,
+			level_current->bf_static.device_data[0], level_current->entities_static_pos, level_current->entities_static_count,
 			level_current->triangles_static_pos, level_current->triangles_static_grid_pos,
 			level_current->textures_map_static_pos, level_current->textures_static_pos);
 

@@ -2,6 +2,7 @@
 
 #include "Util.h"
 #include "Grid.h"
+#include "M1am.h"
 
 #include <sstream>
 #include <map>
@@ -14,6 +15,8 @@
 struct level* level_current	= nullptr;
 
 void level_load(struct level* level, string name) {
+	entity_dynamic_free_clear();
+
 	stringstream levelmeta_path;
 	levelmeta_path << "levels/" << name << ".level";
 
@@ -36,10 +39,30 @@ void level_load(struct level* level, string name) {
 	bit_field_update_device(&level->bf_static, 0);
 
 	level_current = level;
+
+	stringstream levelpath_dyn;
+	levelpath_dyn << "levels/" << name << "_dynamic.bf";
+
+	bit_field_load_from_disk(&bf_dynamic, levelpath_dyn.str());
+
+	stringstream levelpath_dyn_meta;
+	levelpath_dyn_meta << "levels/" << name << "_dynamic.meta";
+
+	util_read_binary(levelpath_dyn_meta.str(), (unsigned char*)&bf_dynamic_m, &bin_l);
+
+	cout << "e_grid pos " << bf_dynamic_m.entity_grid_position_in_bf << std::endl;
+	cout << "ent pos " << bf_dynamic_m.entities_dynamic_position_in_bf << std::endl;
+	cout << "dyn alloc count " << bf_dynamic_m.entities_dynamic_allocated_count << std::endl;
+
+	bit_field_register_device(&bf_dynamic, 0);
+	bit_field_update_device(&bf_dynamic, 0);
+
+	entity_dynamic_free_preallocate(bf_dynamic_m.entities_dynamic_allocated_count);
 }
 
 void level_save(struct level *level, string name) {
 	bit_field_init(&level->bf_static, 128, 1024);
+	bit_field_init(&bf_dynamic, 128, 1024);
 
 	stringstream level_def_path;
 	level_def_path << "levels/" << name << ".txt";
@@ -143,7 +166,7 @@ void level_save(struct level *level, string name) {
 				triangles_static_radius.insert(pair<string, float>(arr[1], max_radius));
 				printf("radius %f\n", max_radius);
 
-				grid_init(&level->bf_static, &triangle_grid, struct vector3<float>(2.0f * max_radius, 2.0f * max_radius, 2.0f * max_radius), struct vector3<float>(0.25f, 0.25f, 0.25f), struct vector3<float>(max_radius, max_radius, max_radius));
+				grid_init(&level->bf_static, &triangle_grid, struct vector3<float>(2.0f * max_radius, 2.0f * max_radius, 2.0f * max_radius), struct vector3<float>(0.25f, 0.25f, 0.25f), struct vector3<float>(max_radius, max_radius, max_radius), 0);
 				int tr_c = 0;
 				for (int t = 0; t < triangles.size(); t++) {
 					struct vector3<float> tmp = util_get_vector3<float>(triangles[t]);
@@ -285,15 +308,15 @@ void level_save(struct level *level, string name) {
 		entities_static.push_back(e);
 	}
 
-	struct grid entities_static_grid;
+	struct grid entity_grid;
 
-	struct vector3<float> entities_static_grid_dimensions = entities_static_max_coords - entities_static_min_coords;
+	struct vector3<float> entity_grid_dimensions = entities_static_max_coords - entities_static_min_coords;
 
 	//NOTE: center is not the actual center, but the translation of the min_coords to {0, 0, 0}
-	struct vector3<float> entities_static_grid_center = -entities_static_min_coords;
+	struct vector3<float> entity_grid_center = -entities_static_min_coords;
 
 	//grid_init(&level->bf_static, &entities_static_grid, entities_static_grid_dimensions, struct vector3<float>(1.0f, 1.0f, 1.0f), entities_static_grid_center);
-	grid_init(&level->bf_static, &entities_static_grid, struct vector3<float>(10.0f, 10.0f, 10.0f), struct vector3<float>(1.0f, 1.0f, 1.0f), struct vector3<float>(5.0f, 5.0f, 5.0f));
+	grid_init(&bf_dynamic, &entity_grid, struct vector3<float>(10.0f, 10.0f, 10.0f), struct vector3<float>(1.0f, 1.0f, 1.0f), struct vector3<float>(5.0f, 5.0f, 5.0f), 0);
 	for (int e = 0; e < entities_static.size(); e++) {
 		struct vector3<float> e_radius = { entities_static[e].radius, entities_static[e].radius, entities_static[e].radius };
 		struct vector3<float> s_radius = { entities_static[e].radius * entities_static[e].scale[0], entities_static[e].radius * entities_static[e].scale[1], entities_static[e].radius * entities_static[e].scale[2] };
@@ -304,13 +327,14 @@ void level_save(struct level *level, string name) {
 		if (s_radius[1] > entities_static[e].radius)entities_static[e].radius = s_radius[1];
 		if (s_radius[2] > entities_static[e].radius)entities_static[e].radius = s_radius[2];
 		
-		grid_object_add(&level->bf_static, level->bf_static.data, entities_static_grid.position_in_bf, entities_static[e].position, entities_static[e].scale, -e_radius, e_radius, e);
+		grid_object_add(&bf_dynamic, bf_dynamic.data, entity_grid.position_in_bf, entities_static[e].position, entities_static[e].scale, -e_radius, e_radius, e);
 
-		cout << "grid index: " << grid_get_index(level->bf_static.data, entities_static_grid.position_in_bf, entities_static[e].position) << std::endl;
+		cout << "grid index: " << grid_get_index(bf_dynamic.data, entity_grid.position_in_bf, entities_static[e].position) << std::endl;
 	}
-	level->entities_static_grid_pos = entities_static_grid.position_in_bf;
-	cout << "entities_static_grid_pos " << level->entities_static_grid_pos << std::endl;
-
+	level->entities_static_count = entities_static.size();
+	grid_postallocate(&bf_dynamic, &entity_grid, 16);
+	bf_dynamic_m.entity_grid_position_in_bf = entity_grid.position_in_bf;
+	cout << "entity_grid_pos: " << bf_dynamic_m.entity_grid_position_in_bf << std::endl;
 
 	unsigned int entities_static_size_in_mem = entities_static.size() * sizeof(struct entity);
 	unsigned int entities_static_size_in_bf = (unsigned int)ceilf(entities_static_size_in_mem / (float)sizeof(unsigned int));
@@ -336,6 +360,8 @@ void level_save(struct level *level, string name) {
 	cout << "textures_size " << textures_static_size_in_mem << std::endl;
 	level->textures_static_pos = textures_static_pos + 1;
 
+	entity_dynamic_preallocate(100);
+
 	stringstream levelpath;
 	levelpath << "levels/" << name << ".bf";
 
@@ -346,4 +372,14 @@ void level_save(struct level *level, string name) {
 	levelmeta_path << "levels/" << name << ".level";
 
 	util_write_binary(levelmeta_path.str(), (unsigned char *)level, sizeof(struct level));
+
+	stringstream levelpath_dyn;
+	levelpath_dyn << "levels/" << name << "_dynamic.bf";
+
+	bit_field_save_to_disk(&bf_dynamic, levelpath_dyn.str());
+
+	stringstream levelpath_dyn_meta;
+	levelpath_dyn_meta << "levels/" << name << "_dynamic.meta";
+
+	util_write_binary(levelpath_dyn_meta.str(), (unsigned char*)&bf_dynamic_m, sizeof(struct bf_dynamic_meta));
 }

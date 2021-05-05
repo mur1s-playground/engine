@@ -20,7 +20,7 @@ struct grid {
 };
 
 __forceinline__
-__host__ void grid_init(struct bit_field* bf, struct grid* out_grid, const vector3<float> dimensions, const vector3<float> scale, const vector3<float> center) {
+__host__ void grid_init(struct bit_field* bf, struct grid* out_grid, const vector3<float> dimensions, const vector3<float> scale, const vector3<float> center, const unsigned int preallocate_slots) {
     vector3<unsigned int> total_dim = { (unsigned int)ceil(dimensions[0] / scale[0]), (unsigned int)ceil(dimensions[1] / scale[1]), (unsigned int)ceil(dimensions[2] / scale[2]) };
     out_grid->scaled_dimensions = { (int)total_dim[0], (int)total_dim[1], (int)total_dim[2] };
     out_grid->scale = scale;
@@ -30,6 +30,47 @@ __host__ void grid_init(struct bit_field* bf, struct grid* out_grid, const vecto
 
     out_grid->data_position_in_bf = bit_field_add_bulk_zero(bf, total_size_in_bf);
     out_grid->position_in_bf = bit_field_add_bulk(bf, (unsigned int*)out_grid, SIZEOF_GRID_IN_BF, SIZEOF_GRID);
+    if (preallocate_slots > 0) {
+        unsigned int* tmp = (unsigned int*)malloc(preallocate_slots * sizeof(unsigned int));
+        for (int i = 0; i < preallocate_slots; i++) {
+            tmp[i] = UINT_MAX;
+        }
+        for (int i = 0; i < total_size_in_bf; i++) {
+            bit_field_update_data(bf, out_grid->data_position_in_bf + 1 + i, bit_field_add_bulk(bf, tmp, preallocate_slots, preallocate_slots * sizeof(unsigned int)));
+        }
+        free(tmp);
+    }
+}
+
+__forceinline__
+__host__ void grid_postallocate(struct bit_field* bf, struct grid* gd, const unsigned int postallocate_slots) {
+    unsigned int total_size_in_bf = (gd->scaled_dimensions[2] * (gd->scaled_dimensions[1] * gd->scaled_dimensions[0]) + gd->scaled_dimensions[1] * gd->scaled_dimensions[1] + gd->scaled_dimensions[0]);
+    unsigned int* tmp = (unsigned int*)malloc(postallocate_slots * sizeof(unsigned int));
+    for (int i = 0; i < postallocate_slots; i++) {
+        tmp[i] = UINT_MAX;
+    }
+    for (int i = 0; i < total_size_in_bf; i++) {
+        if (bf->data[gd->data_position_in_bf + 1 + i] == 0) {
+            bit_field_update_data(bf, gd->data_position_in_bf + 1 + i, bit_field_add_bulk(bf, tmp, postallocate_slots, postallocate_slots * sizeof(unsigned int)));
+        } else {
+            int added = 0;
+            int first_free = 0;
+            int cur_val = bf->data[gd->data_position_in_bf + 1 + i];
+            for (int s = 0; s < bf->data[cur_val]; s++) {
+                if (bf->data[cur_val + 1 + s] == UINT_MAX) {
+                    first_free = s;
+                    break;
+                }
+            }
+            int slots_to_add = postallocate_slots - (bf->data[cur_val] - first_free);
+            if (bf->data[cur_val] - first_free < postallocate_slots) {
+                unsigned int check_for_realloc = bit_field_add_bulk_to_segment(bf, cur_val, tmp, slots_to_add, slots_to_add * sizeof(unsigned int));
+                if (check_for_realloc != cur_val) {
+                    bit_field_update_data(bf, gd->data_position_in_bf + 1 + i, check_for_realloc);
+                }
+            }
+        }
+    }
 }
 
 __forceinline__
@@ -142,7 +183,10 @@ __host__ __device__ int grid_object_add(struct bit_field* bf, unsigned int* bf_d
 #else
                     bool found = 0;
                     for (int s = 0; s < bf_data[cur_val]; s++) {
-                        if (bf_data[cur_val + 1 + s] == id) found = 1;
+                        if (bf_data[cur_val + 1 + s] == id) {
+                            found = 1;
+                            break;
+                        }
                     }
                     if (found == 0) {
                         int added = 0;
@@ -193,7 +237,18 @@ __host__ __device__ int grid_object_remove(struct bit_field* bf, unsigned int* b
 #else
                     for (int s = 0; s < bf_data[cur_val]; s++) {
                         if (bf_data[cur_val + 1 + s] == id) {
-                            bit_field_update_data(bf, cur_val + 1 + s, UINT_MAX);
+                            unsigned int defrag = UINT_MAX;
+                            int s_ = s+1;
+                            for (; s_ < bf_data[cur_val]; s_++) {
+                                if (bf_data[cur_val + 1 + s_] == UINT_MAX) {
+                                    break;
+                                }
+                                defrag = bf_data[cur_val + 1 + s_];
+                            }
+                            bit_field_update_data(bf, cur_val + 1 + s, defrag);
+                            if (defrag != UINT_MAX) {
+                                bit_field_update_data(bf, cur_val + 1 + s_ - 1, UINT_MAX);
+                            }
                             break;
                         }
                     }

@@ -153,9 +153,9 @@
     <ClCompile Include="Level.cpp" />
     <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="M1am.cpp" />
+    <ClCompile Include="Particles.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="SDLShow.cpp" />
-    <ClCompile Include="TriangleGrid.cpp" />
     <ClCompile Include="Util.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -168,10 +168,10 @@
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="M1am.h" />
     <ClInclude Include="Matrix3.h" />
+    <ClInclude Include="Particles.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Render.h" />
     <ClInclude Include="SDLShow.h" />
-    <ClInclude Include="TriangleGrid.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Vector2.h" />
     <ClInclude Include="Vector3.h" />

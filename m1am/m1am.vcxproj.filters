@@ -30,9 +30,6 @@
     <ClCompile Include="Util.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="TriangleGrid.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
     <ClCompile Include="lodepng.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
@@ -46,6 +43,9 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="Camera.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="Particles.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
@@ -74,9 +74,6 @@
     <ClInclude Include="Util.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="TriangleGrid.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
     <ClInclude Include="lodepng.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
@@ -96,6 +93,9 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="M1am.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="Particles.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

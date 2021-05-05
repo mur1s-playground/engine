@@ -9,13 +9,12 @@ struct level {
 	struct bit_field	bf_static;
 
 	unsigned int		entities_static_pos;
-	unsigned int		entities_static_grid_pos;
 	unsigned int		triangles_static_pos;
 	unsigned int		triangles_static_grid_pos;
 	unsigned int		textures_map_static_pos;
 	unsigned int		textures_static_pos;
 
-	//unsigned int		sin_position;
+	unsigned int		entities_static_count;
 };
 
 extern struct level* level_current;

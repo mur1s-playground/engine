@@ -8,6 +8,7 @@
 #include "Entity.h"
 #include "time.h"
 #include "Player.h"
+#include "Particles.h"
 
 #include "SDLShow.h"
 #include "lodepng.h"
@@ -18,15 +19,14 @@ struct bit_field					bf_dynamic;
 struct vector2<int>					resolution			= { 1920, 1080 };
 struct vector2<int>					resolution_section	= { 1920 / 5, 1080 / 5 };
 
+struct bf_dynamic_meta				bf_dynamic_m;
+
 
 int main(int argc, char* argv[]) {
 	struct level l;
 
 	level_save(&l, "default");
 	level_load(&l, "default");
-
-	bit_field_init(&bf_dynamic, 128, 1024);
-	bit_field_register_device(&bf_dynamic, 0);
 
 	players_init();
 	
@@ -122,6 +122,9 @@ int main(int argc, char* argv[]) {
 			fps = 0;
 		}
 
+		particles_tick();
+		cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
+
 		while (SDL_PollEvent(&sdl_event) != 0) {
 			/*
 			float camera_delta_z = 0.0f;
@@ -184,6 +187,13 @@ int main(int argc, char* argv[]) {
 
 			if (capture_mouse) {
 				struct camera* p = &cameras[player_selected_id];
+
+				if (sdl_event.type == SDL_MOUSEBUTTONDOWN && sdl_event.button.button == SDL_BUTTON(SDL_BUTTON_LEFT)) {
+					particle_add(p->position, p->orientation, struct vector3<float>(1.0f, 1.0f, 1.0f));
+					cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
+				}
+				p = &cameras[player_selected_id];
+
 				if (sdl_event.type == SDL_MOUSEMOTION) {
 					p->orientation = {
 						p->orientation[0] + (sdl_event.motion.y - mouse_position[1]) * mouse_y_invert * mouse_sensitivity[1] * 1e-3f,

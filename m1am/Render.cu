@@ -25,8 +25,8 @@ __device__ vector3<float> rotate_z(vector3<float> v, float rad_z) {
 	return (rot_z * v);
 }
 
-__global__ void render(	const unsigned int* bf_dynamic, const unsigned int cameras_position,				const unsigned int camera_c,		const unsigned int camera_id,
-						const unsigned int* bf_static,	const unsigned int entities_static_position,		const unsigned int entities_static_grid_position,
+__global__ void render(	const unsigned int* bf_dynamic, const unsigned int cameras_position,				const unsigned int camera_c,		const unsigned int camera_id, const unsigned int entity_grid_position, const unsigned int entities_dynamic_position,
+						const unsigned int* bf_static,	const unsigned int entities_static_position,		const unsigned int entities_static_count,
 														const unsigned int triangles_static_position,		const unsigned int triangles_static_grid_position,
 														const unsigned int textures_map_static_position,	const unsigned int textures_static_position) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -76,22 +76,28 @@ __global__ void render(	const unsigned int* bf_dynamic, const unsigned int camer
 			};
 
 			struct vector3<float> camera_ray_grid_traversal_position = camera_position;
-			int entity_static_grid_current_idx = grid_get_index(bf_static, entities_static_grid_position, camera_ray_grid_traversal_position);
+			int entity_static_grid_current_idx = grid_get_index(bf_dynamic, entity_grid_position, camera_ray_grid_traversal_position);
 			while (entity_static_grid_current_idx != -1 && closest_id_entity == UINT_MAX) {
-				struct grid* entity_static_grid = (struct grid*) &bf_static[entities_static_grid_position + 1];
-				unsigned int entities_static_iddata_position = bf_static[entity_static_grid->data_position_in_bf + 1 + entity_static_grid_current_idx];
+				struct grid* entity_static_grid = (struct grid*) &bf_dynamic[entity_grid_position + 1];
+				unsigned int entities_static_iddata_position = bf_dynamic[entity_static_grid->data_position_in_bf + 1 + entity_static_grid_current_idx];
 				if (entities_static_iddata_position > 0) {
-					unsigned int entities_static_count = bf_static[entities_static_iddata_position];
+					unsigned int entities_count = bf_dynamic[entities_static_iddata_position];
 
-					for (int e = 0; e < entities_static_count; e++) {
-						unsigned int entity_id = bf_static[entities_static_iddata_position + 1 + e];
+					for (int e = 0; e < entities_count; e++) {
+						unsigned int entity_id = bf_dynamic[entities_static_iddata_position + 1 + e];
 
-						//should not happen in static
-						//if (entity_id < UINT_MAX)
+						struct entity* entities = nullptr;
+						struct entity* entity_current = nullptr;
 
-						struct entity* entities = (struct entity*)&bf_static[entities_static_position];
-
-						struct entity* entity_current = &entities[entity_id];
+						if (entity_id == UINT_MAX) {
+							break;
+						} else if (entity_id < entities_static_count){
+							entities = (struct entity*)&bf_static[entities_static_position];
+							entity_current = &entities[entity_id];
+						} else {
+							entities = (struct entity*)&bf_dynamic[entities_dynamic_position];
+							entity_current = &entities[entity_id - entities_static_count];
+						}
 						
 						vector3<float> oc = camera_position - entity_current->position;
 						float a = dot(camera_ray_orientation, camera_ray_orientation);
@@ -236,11 +242,11 @@ __global__ void render(	const unsigned int* bf_dynamic, const unsigned int camer
 					}
 				}
 				int entity_static_grid_new_idx = entity_static_grid_current_idx;
-				float grid_traverse_lambda = grid_traverse_in_direction(bf_static, entities_static_grid_position, camera_ray_grid_traversal_position, camera_ray_orientation);
+				float grid_traverse_lambda = grid_traverse_in_direction(bf_dynamic, entity_grid_position, camera_ray_grid_traversal_position, camera_ray_orientation);
 				int count = 0;
 				do {
 					camera_ray_grid_traversal_position = camera_ray_grid_traversal_position - (camera_ray_orientation * -(grid_traverse_lambda + (float)count * 1e-6f));
-					entity_static_grid_new_idx = grid_get_index(bf_static, entities_static_grid_position, camera_ray_grid_traversal_position);
+					entity_static_grid_new_idx = grid_get_index(bf_dynamic, entity_grid_position, camera_ray_grid_traversal_position);
 					count++;
 				} while (entity_static_grid_new_idx == entity_static_grid_current_idx);
 				entity_static_grid_current_idx = entity_static_grid_new_idx;
@@ -256,8 +262,8 @@ __global__ void render(	const unsigned int* bf_dynamic, const unsigned int camer
 	//}
 }
 
-__global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int cameras_position, const unsigned int camera_c, const unsigned int camera_id,
-	const unsigned int* bf_static, const unsigned int entities_static_position, const unsigned int entities_static_grid_position,
+__global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int cameras_position, const unsigned int camera_c, const unsigned int camera_id, const unsigned int entity_grid_position, const unsigned int entities_dynamic_position,
+	const unsigned int* bf_static, const unsigned int entities_static_position, const unsigned int entities_static_count,
 	const unsigned int triangles_static_position, const unsigned int triangles_static_grid_position,
 	const unsigned int textures_map_static_position, const unsigned int textures_static_position) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -314,9 +320,16 @@ __global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int c
 					unsigned int triangle_id = image_d_ray[(image_src_y + y)* (camera_resolution[0] / 5) * 2 + (image_src_x + x)* 2 + 1];
 					if (entity_id < UINT_MAX) {
 						entity_found = true;
-						struct entity* entities = (struct entity*)&bf_static[entities_static_position];
+						struct entity* entities = nullptr;
+						struct entity* entity_current = nullptr;
 
-						struct entity* entity_current = &entities[entity_id];
+						if (entity_id < entities_static_count) {
+							entities = (struct entity*)&bf_static[entities_static_position];
+							entity_current = &entities[entity_id];
+						} else {
+							entities = (struct entity*)&bf_dynamic[entities_dynamic_position];
+							entity_current = &entities[entity_id - entities_static_count];
+						}
 
 						vector3<float> oc = camera_position - entity_current->position;
 						float a = dot(camera_ray_orientation, camera_ray_orientation);
@@ -447,9 +460,17 @@ __global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int c
 						unsigned int triangle_id = image_d_ray[(image_src_y +y*2)* (camera_resolution[0] / 5) * 2 + (image_src_x + x*2)* 2 + 1];
 						if (entity_id < UINT_MAX) {
 							entity_found = true;
-							struct entity* entities = (struct entity*)&bf_static[entities_static_position];
 
-							struct entity* entity_current = &entities[entity_id];
+							struct entity* entities = nullptr;
+							struct entity* entity_current = nullptr;
+
+							if (entity_id < entities_static_count) {
+								entities = (struct entity*)&bf_static[entities_static_position];
+								entity_current = &entities[entity_id];
+							} else {
+								entities = (struct entity*)&bf_dynamic[entities_dynamic_position];
+								entity_current = &entities[entity_id - entities_static_count];
+							}
 
 							vector3<float> oc = camera_position - entity_current->position;
 							float a = dot(camera_ray_orientation, camera_ray_orientation);
@@ -574,9 +595,17 @@ __global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int c
 		}
 		
 		if (closest < FLT_MAX) {
-			struct entity* entities = (struct entity*)&bf_static[entities_static_position];
+			struct entity* entities = nullptr;
+			struct entity* entity_current = nullptr;
 
-			struct entity* entity_current = &entities[closest_id_entity];
+			if (closest_id_entity < entities_static_count) {
+				entities = (struct entity*)&bf_static[entities_static_position];
+				entity_current = &entities[closest_id_entity];
+			}
+			else {
+				entities = (struct entity*)&bf_dynamic[entities_dynamic_position];
+				entity_current = &entities[closest_id_entity - entities_static_count];
+			}
 
 			struct triangle_texture* texture_map = (struct triangle_texture*)&bf_static[textures_map_static_position];
 			struct triangle_texture* tt = &texture_map[entity_current->texture_map_id];
@@ -619,8 +648,8 @@ __global__ void render_conv(const unsigned int* bf_dynamic, const unsigned int c
 	//}
 }
 
-void render_launch(		const unsigned int* bf_dynamic, const unsigned int cameras_position,				const unsigned int camera_c, const unsigned int camera_id,
-						const unsigned int* bf_static,	const unsigned int entities_static_position,		const unsigned int entities_static_grid_position,
+void render_launch(		const unsigned int* bf_dynamic, const unsigned int cameras_position,				const unsigned int camera_c, const unsigned int camera_id, const unsigned int entity_grid_position, const unsigned int entities_dynamic_position,
+						const unsigned int* bf_static,	const unsigned int entities_static_position,		const unsigned int entities_static_count,
 														const unsigned int triangles_static_position,		const unsigned int triangles_static_grid_position,
 														const unsigned int textures_map_static_position,	const unsigned int textures_static_position) {
 	cudaError_t err = cudaSuccess;
@@ -630,16 +659,16 @@ void render_launch(		const unsigned int* bf_dynamic, const unsigned int cameras_
 	//printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 	
 	render <<<blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (
-													bf_dynamic, cameras_position,				camera_c, camera_id,
-													bf_static,	entities_static_position,		entities_static_grid_position,
+													bf_dynamic, cameras_position,				camera_c, camera_id, entity_grid_position, entities_dynamic_position,
+													bf_static,	entities_static_position,		entities_static_count,
 																triangles_static_position,		triangles_static_grid_position,
 																textures_map_static_position,	textures_static_position);
 
 	blocksPerGrid = (cameras[camera_id].resolution[0] * cameras[camera_id].resolution[1] + threadsPerBlock - 1) / threadsPerBlock;
 
 	render_conv << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (
-		bf_dynamic, cameras_position, camera_c, camera_id,
-		bf_static, entities_static_position, entities_static_grid_position,
+		bf_dynamic, cameras_position, camera_c, camera_id, entity_grid_position, entities_dynamic_position,
+		bf_static, entities_static_position, entities_static_count,
 		triangles_static_position, triangles_static_grid_position,
 		textures_map_static_position, textures_static_position);
 

@@ -4,6 +4,7 @@
 #include "Vector3.h"
 
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -28,3 +29,12 @@ struct entity {
 	unsigned int			triangles_grid_id;
 	unsigned int			texture_map_id;
 };
+
+extern struct entity*		entities_dynamic;
+
+void entity_dynamic_free_preallocate(unsigned int preallocate_count);
+void entity_dynamic_free_clear();
+void entity_dynamic_preallocate(unsigned int preallocate_count);
+unsigned int entity_dynamic_add(unsigned int static_entity_id, struct vector3<float> position, struct vector3<float> orientation, struct vector3<float> scale);
+void entity_dynamic_remove(unsigned int entity_dynamic_id, bool from_grid);
+void entity_dynamic_move(unsigned int entity_dynamic_id, struct vector3<float> position_to);
