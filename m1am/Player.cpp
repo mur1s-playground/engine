@@ -83,6 +83,22 @@ void players_init() {
 					camera_player->resolution = { resolution[0]/5, resolution[1]/5 };
 				}
 				camera_player->digital_zoom = 1.0f;
+
+				for (int g = 0; g < 2; g++) {
+					players[sc * player_squadsize + ss].gun_active_id = 0;
+					if (g == 0) {
+						if (ss % 3 == 2) {
+							gun_init(&players[sc * player_squadsize + ss].gun[0], GT_SNIPER);
+						} else {
+							gun_init(&players[sc * player_squadsize + ss].gun[0], GT_AR);
+						}
+					} else if (g == 1) {
+						gun_init(&players[sc * player_squadsize + ss].gun[1], GT_PISTOL);
+					}
+				}
+				
+				
+				
 				cudaMalloc(&camera_player->device_ptr_ray, (resolution[0] * resolution[1])/5 * 2 * sizeof(unsigned int));
 				cudaMalloc(&camera_player->device_ptr, resolution[0] * resolution[1] * 4 * sizeof(unsigned char));
 			}

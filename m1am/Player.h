@@ -1,10 +1,14 @@
 #pragma once
 
 #include "Vector2.h"
+#include "Gun.h"
 
 struct player {
 	unsigned int entity_id;
 	unsigned int camera_id;
+
+	unsigned int	gun_active_id;
+	struct gun		gun[2];
 };
 
 struct player_section {

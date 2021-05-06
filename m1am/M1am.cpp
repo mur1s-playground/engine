@@ -9,6 +9,8 @@
 #include "time.h"
 #include "Player.h"
 #include "Particles.h"
+#include "Physics.h"
+#include "Gun.h"
 
 #include "SDLShow.h"
 #include "lodepng.h"
@@ -29,6 +31,7 @@ int main(int argc, char* argv[]) {
 	level_load(&l, "default");
 
 	players_init();
+	physics_init();
 	
 	bit_field_update_device(&bf_dynamic, 0);
 
@@ -49,17 +52,21 @@ int main(int argc, char* argv[]) {
 	bool				move_left		= false;
 	bool				move_right		= false;
 
+	bool				shooting		= false;
 
 	int						mouse_y_invert		= -1;
 	struct vector2<float>	mouse_sensitivity	= { 1.0f, 1.0f };
 
-	int						keybind_menu		= SDLK_ESCAPE;
-	int						keybind_forward		= SDLK_UP;
-	int						keybind_back		= SDLK_DOWN;
-	int						keybind_left		= SDLK_LEFT;
-	int						keybind_right		= SDLK_RIGHT;
-	int						keybind_rotate		= SDLK_TAB;
-	
+	int						keybind_menu			= SDLK_ESCAPE;
+	int						keybind_forward			= SDLK_UP;
+	int						keybind_back			= SDLK_DOWN;
+	int						keybind_left			= SDLK_LEFT;
+	int						keybind_right			= SDLK_RIGHT;
+	int						keybind_rotate			= SDLK_TAB;
+	int						keybind_toggle_firemode = SDLK_HOME;
+
+	float physics_time = 0.0f;
+
 	while (true) {
 		long tf = clock();
 	
@@ -74,46 +81,13 @@ int main(int argc, char* argv[]) {
 		*/
 		players_render();
 
-		//render_staircase_filter_kernel_launch(camera_player_image_device[0], camera_player_edge_filter_device[0], camera_player.resolution[0], camera_player.resolution[1], 3, 1.0f);
-
-		//render_edge_filter_kernel_launch(camera_player_image_device[0], camera_player_edge_filter_device[0], camera_player.resolution[0], camera_player.resolution[1], 3, 3.0f);
-		//render_max_filter_kernel_launch(camera_player_edge_filter_device[0], camera_player_edge_filter_device[1], camera_player.resolution[0], camera_player.resolution[1], 1, 5);
-
-		//render_gauss_blur_kernel_launch(camera_player_edge_filter_device[1], camera_player_edge_filter_device[0], camera_player.resolution[0], camera_player.resolution[1], 1);
-		//render_gauss_blur_kernel_launch(camera_player_edge_filter_device[1], camera_player_edge_filter_device[0], camera_player.resolution[0], camera_player.resolution[1], 1);
-
-		//render_anti_alias_kernel_launch(camera_player_image_device[0], camera_player_edge_filter_device[0], camera_player_image_device[1], camera_player.resolution[0], camera_player.resolution[1], 3);
-		/*
-		render_anti_alias_kernel_launch(camera_player_image_device[0], camera_player_image_device[1], camera_player.resolution[0], camera_player.resolution[1], 3, 5.0f);
-		render_anti_alias_kernel_launch(camera_player_image_device[1], camera_player_image_device[0], camera_player.resolution[0], camera_player.resolution[1], 3, 5.0f);
-		*/
-
-		//cudaMemcpy(camera_player_image[1], camera_player_image_device[0], camera_player.resolution[0] * camera_player.resolution[1] * 3 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-		//cudaMemcpy(camera_player_image[0], camera_player_image_device[0], camera_player.resolution[0] * camera_player.resolution[1] * 4 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-		/*
-		cudaMemcpy(camera_player_edge_filter[0], camera_player_edge_filter_device[0], camera_player.resolution[0] * camera_player.resolution[1] * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-		cudaMemcpy(camera_player_edge_filter[1], camera_player_edge_filter_device[1], camera_player.resolution[0] * camera_player.resolution[1] * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-		*/
 		sdl_update_frame((void*)players_composed, capture_mouse);
-
-		/*
-		struct entity* entities = (struct entity*)&l.bf_static.data[l.entities_static_pos];
-		entities[0].orientation[2] += 0.2f;
-
-		bit_field_invalidate_bulk(&l.bf_static, l.entities_static_pos, (int)ceilf(sizeof(struct entity)/(float)sizeof(unsigned int)));
-		bit_field_update_device(&l.bf_static, 0);
-		*/
-		/*
-		lodepng::encode("output___.png", camera_player_image[1], camera_player.resolution[0], camera_player.resolution[1], LCT_RGB, 8U);
-		lodepng::encode("output.png", camera_player_image[0], camera_player.resolution[0], camera_player.resolution[1], LCT_RGB, 8U);
-		lodepng::encode("output_.png", camera_player_edge_filter[0], camera_player.resolution[0], camera_player.resolution[1], LCT_GREY, 8U);
-		lodepng::encode("output__.png", camera_player_edge_filter[1], camera_player.resolution[0], camera_player.resolution[1], LCT_GREY, 8U);
-		*/
 		
 		long tf_2 = clock();
 		long tf_ = tf_2 - tf;
 		double td = ((double)tf_ / CLOCKS_PER_SEC);
 		sec += td;
+		physics_time += td;
 		fps++;
 
 		if (sec >= 1.0) {
@@ -122,31 +96,18 @@ int main(int argc, char* argv[]) {
 			fps = 0;
 		}
 
-		particles_tick();
 		cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
 
 		while (SDL_PollEvent(&sdl_event) != 0) {
-			/*
-			float camera_delta_z = 0.0f;
-				if (sdl_event.type == SDL_MOUSEWHEEL) {
-					if (!ui_process_scroll(&bf_rw, mouse_position[0], mouse_position[1], sdl_event.wheel.y)) {
-						camera_delta_z -= sdl_event.wheel.y * sensitivity_z;
-						camera_move(struct vector3<float>(0.0f, 0.0f, camera_delta_z));
-					}
-				}
-
-				if (sdl_event.type == SDL_MOUSEMOTION && sdl_event.button.button == SDL_BUTTON(SDL_BUTTON_RIGHT)) {
-					float zoom_sensitivity = sensitivity_xy * camera[2] * sensitivity_zoom_ratio;
-					if (zoom_sensitivity < 0.2f) zoom_sensitivity = 0.2f;
-					camera_move(struct vector3<float>(-sdl_event.motion.xrel * zoom_sensitivity, -sdl_event.motion.yrel * zoom_sensitivity, 0.0f));
-					camera_get_crop(camera_crop);
-				}
-			} else {
-				if (sdl_event.type == SDL_MOUSEWHEEL) {
-					ui_process_scroll(&bf_rw, mouse_position[0], mouse_position[1], sdl_event.wheel.y);
+			if (sdl_event.type == SDL_MOUSEWHEEL) {
+				bool up = sdl_event.wheel.y > 0;
+				if (up) {
+					players[player_selected_id].gun_active_id = 1;
+				} else {
+					players[player_selected_id].gun_active_id = 0;
 				}
 			}
-			*/
+			
 			if (sdl_event.type == SDL_KEYDOWN) {
 				if (sdl_event.key.keysym.sym == keybind_menu) {
 					if (capture_mouse) {
@@ -168,6 +129,9 @@ int main(int argc, char* argv[]) {
 					move_right = true;
 				} else if (sdl_event.key.keysym.sym == keybind_rotate) {
 					player_rotate_queue++;
+				} else if (sdl_event.key.keysym.sym == keybind_toggle_firemode) {
+					gun_toggle_firemode(&players[player_selected_id].gun[0]);
+					cout << "toggling" << std::endl;
 				}
 			}
 
@@ -186,10 +150,16 @@ int main(int argc, char* argv[]) {
 			}
 
 			if (capture_mouse) {
+				cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
 				struct camera* p = &cameras[player_selected_id];
 
 				if (sdl_event.type == SDL_MOUSEBUTTONDOWN && sdl_event.button.button == SDL_BUTTON(SDL_BUTTON_LEFT)) {
-					particle_add(p->position, p->orientation, struct vector3<float>(1.0f, 1.0f, 1.0f));
+					shooting = true;
+					cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
+				}
+
+				if (sdl_event.type == SDL_MOUSEBUTTONUP && sdl_event.button.button == SDL_BUTTON(SDL_BUTTON_LEFT)) {
+					shooting = false;
 					cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
 				}
 				p = &cameras[player_selected_id];
@@ -221,41 +191,17 @@ int main(int argc, char* argv[]) {
 				bit_field_invalidate_bulk(&bf_dynamic, cameras_position_in_bf, cameras_size_in_bf);
 			}
 		
-			/*
-			vector2<unsigned int> current_mouse_game_position = { camera_crop[0] + (unsigned int)(mouse_position[0] * camera[2]), camera_crop[2] + (unsigned int)(mouse_position[1] * camera[2]) };
-
-			if (ui_active != "") {
-				if (sdl_event.type == SDL_MOUSEBUTTONUP && sdl_event.button.button == SDL_BUTTON(SDL_BUTTON_LEFT)) {
-					//printf("clicking %i %i\n", mouse_position[0], mouse_position[1]);
-					bool processed_click = ui_process_click(&bf_rw, mouse_position[0], mouse_position[1]);
-					if (processed_click) {
-						if (uis[ui_active].active_element_id > -1 && uis[ui_active].ui_elements[uis[ui_active].active_element_id].uet == UET_SCROLLLIST) {
-							string ui_element_name = uis[ui_active].ui_elements[uis[ui_active].active_element_id].name;
-							if (ui_active == "lobby" && ui_element_name == "maps") {
-								if (uis[ui_active].active_element_param > -1) {
-									string map_name = map_name_from_index(&bf_rw, uis[ui_active].active_element_param);
-									ui_textfield_set_value(&bf_rw, "lobby", "selected_map", map_name.c_str());
-									string map_asset_path = "./maps/" + map_name + "_minimap.png";
-									ui_value_as_config(&bf_rw, "lobby", "minimap", 0, assets[map_asset_path]);
-									ui_value_as_config(&bf_rw, "lobby", "minimap", 1, assets_dimensions[map_asset_path].width);
-									ui_value_as_config(&bf_rw, "lobby", "minimap", 2, assets_dimensions[map_asset_path].height);
-								}
-							}
-						}
-					}
-					else {
-						if (map_editor && ui_active == "mapeditor_overlay") {
-							mapeditor_process_click();
-						}
-					}
-					players_process_left_click(current_mouse_game_position);
-				}
-				if (sdl_event.type == SDL_MOUSEBUTTONUP && sdl_event.button.button == 3) {
-					players_process_right_click(current_mouse_game_position);
-				}
-			}
-			*/
 		}
+		gun_tick(&players[player_selected_id].gun[players[player_selected_id].gun_active_id], cameras[player_selected_id].position, cameras[player_selected_id].orientation, shooting);
+		physics_invalidate_all();
+
+		bit_field_update_device(&bf_dynamic, 0);
+
+		physics_tick(td);
+
+		bit_field_update_host(&bf_dynamic, 0);
+		particles_tick();
+		
 	}
 
 	return 0;

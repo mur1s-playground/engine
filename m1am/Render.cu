@@ -10,21 +10,6 @@
 
 #include "CUDAStreamHandler.h"
 
-__device__ vector3<float> rotate_x(vector3<float> v, float rad_x) {
-	struct matrix3<float> rot_x = { {1, 0, 0}, {0, cosf(rad_x), -sinf(rad_x)}, {0, sinf(rad_x), cosf(rad_x)} };
-	return (rot_x * v);
-}
-
-__device__ vector3<float> rotate_y(vector3<float> v, float rad_y) {
-	struct matrix3<float> rot_y = { {cosf(rad_y), 0, sinf(rad_y)}, {0, 1, 0}, {-sinf(rad_y), 0, cosf(rad_y)} };
-	return (rot_y * v);
-}
-
-__device__ vector3<float> rotate_z(vector3<float> v, float rad_z) {
-	struct matrix3<float> rot_z = { {cosf(rad_z), -sinf(rad_z), 0}, {sinf(rad_z), cosf(rad_z), 0}, {0, 0, 1} };
-	return (rot_z * v);
-}
-
 __global__ void render(	const unsigned int* bf_dynamic, const unsigned int cameras_position,				const unsigned int camera_c,		const unsigned int camera_id, const unsigned int entity_grid_position, const unsigned int entities_dynamic_position,
 						const unsigned int* bf_static,	const unsigned int entities_static_position,		const unsigned int entities_static_count,
 														const unsigned int triangles_static_position,		const unsigned int triangles_static_grid_position,

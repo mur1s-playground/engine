@@ -45,4 +45,22 @@ __host__ __device__ auto operator*(const matrix3<T> m1, const matrix3<T> m2) -> 
 				{ dot(m1_v_r0, m2[2]), dot(m1_v_r1, m2[2]), dot(m1_v_r3, m2[2]) } };
 }
 
+template<typename T>
+__host__ __device__ vector3<T> rotate_x(vector3<T> v, T rad_x) {
+	struct matrix3<T> rot_x = { {1, 0, 0}, {0, cosf(rad_x), -sinf(rad_x)}, {0, sinf(rad_x), cosf(rad_x)} };
+	return (rot_x * v);
+}
+
+template<typename T>
+__host__ __device__ vector3<T> rotate_y(vector3<T> v, T rad_y) {
+	struct matrix3<T> rot_y = { {cosf(rad_y), 0, sinf(rad_y)}, {0, 1, 0}, {-sinf(rad_y), 0, cosf(rad_y)} };
+	return (rot_y * v);
+}
+
+template<typename T>
+__host__ __device__ vector3<T> rotate_z(vector3<T> v, T rad_z) {
+	struct matrix3<T> rot_z = { {cosf(rad_z), -sinf(rad_z), 0}, {sinf(rad_z), cosf(rad_z), 0}, {0, 0, 1} };
+	return (rot_z * v);
+}
+
 #endif /* MATRIX3_HPP */

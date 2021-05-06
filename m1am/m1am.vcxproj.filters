@@ -48,6 +48,9 @@
     <ClCompile Include="Particles.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="Gun.cpp">
+      <Filter>Headerdateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitField.h">
@@ -98,9 +101,18 @@
     <ClInclude Include="Particles.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="Physics.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="Gun.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="Render.cu">
+      <Filter>Quelldateien</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Physics.cu">
       <Filter>Quelldateien</Filter>
     </CudaCompile>
   </ItemGroup>

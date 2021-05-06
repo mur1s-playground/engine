@@ -150,6 +150,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CUDAStreamHandler.cpp" />
     <ClCompile Include="Entity.cpp" />
+    <ClCompile Include="Gun.cpp" />
     <ClCompile Include="Level.cpp" />
     <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="M1am.cpp" />
@@ -164,11 +165,13 @@
     <ClInclude Include="CUDAStreamHandler.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="Grid.h" />
+    <ClInclude Include="Gun.h" />
     <ClInclude Include="Level.h" />
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="M1am.h" />
     <ClInclude Include="Matrix3.h" />
     <ClInclude Include="Particles.h" />
+    <ClInclude Include="Physics.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Render.h" />
     <ClInclude Include="SDLShow.h" />
@@ -177,6 +180,7 @@
     <ClInclude Include="Vector3.h" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="Physics.cu" />
     <CudaCompile Include="Render.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
