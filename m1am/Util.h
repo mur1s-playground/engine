@@ -44,7 +44,7 @@ template <typename T> struct vector3<T> util_get_vector3(const std::string& str)
 	return result;
 }
 
-vector<string>	util_split(const std::string& str);
+vector<string>	util_split(const std::string& str, const std::string& separator = ",");
 
 void util_read_binary(string filename, unsigned char* bin, size_t* out_length);
 void util_write_binary(string filename, unsigned char* bin, size_t length);

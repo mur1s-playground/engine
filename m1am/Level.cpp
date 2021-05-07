@@ -102,7 +102,8 @@ void level_save(struct level *level, string name) {
 		struct entity e;
 		e.position = { stof(arr[4]),stof(arr[5]), stof(arr[6]) };
 		e.orientation = { stof(arr[7]) * M_PI / 180.0f, stof(arr[8]) * M_PI / 180.0f, stof(arr[9]) * M_PI / 180.0f };
-		e.scale = { stof(arr[10]), stof(arr[11]), stof(arr[12]) };
+		e.scale = stof(arr[10]);
+		e.skeleton_id = UINT_MAX;
 
 		//--------------//
 		//LOAD TRIANGLES//
@@ -167,8 +168,14 @@ void level_save(struct level *level, string name) {
 				printf("radius %f\n", max_radius);
 
 				grid_init(&level->bf_static, &triangle_grid, struct vector3<float>(2.0f * max_radius, 2.0f * max_radius, 2.0f * max_radius), struct vector3<float>(0.25f, 0.25f, 0.25f), struct vector3<float>(max_radius, max_radius, max_radius), 0);
+				cout << "initialized triangles static grid" << std::endl;
 				int tr_c = 0;
+				count = 0;
 				for (int t = 0; t < triangles.size(); t++) {
+					if (triangles[t].length() == 0) continue;
+					if (util_starts_with(triangles[t], comment)) continue;
+
+					cout << t << " " <<triangles[t] << std::endl;
 					struct vector3<float> tmp = util_get_vector3<float>(triangles[t]);
 
 					vector3<float> max, min;
@@ -184,19 +191,22 @@ void level_save(struct level *level, string name) {
 					tr_c++;
 
 					if (tr_c == 3) {
-						grid_object_add(&level->bf_static, level->bf_static.data, triangle_grid.position_in_bf, struct vector3<float>(0.0f, 0.0f, 0.0f), struct vector3<float>(1.0f, 1.0f, 1.0f), min, max, t / 3);
+						cout << "adding grid object " << std::endl;
+						grid_object_add(&level->bf_static, level->bf_static.data, triangle_grid.position_in_bf, struct vector3<float>(0.0f, 0.0f, 0.0f), struct vector3<float>(1.0f, 1.0f, 1.0f), min, max, count / 3);
 						tr_c = 0;
 					}
+					count++;
 				}
 				e.triangles_grid_id = triangle_grid.position_in_bf;
 				triangles_static_grid_id.insert(pair<string, unsigned int>(arr[1], e.triangles_grid_id));
 
+
 				for (int d = 0; d < 3; d++) {
 					if (e.position[d] - e.radius < entities_static_min_coords[d]) {
-						entities_static_min_coords[d] = e.position[d] - (e.radius * e.scale[d]);
+						entities_static_min_coords[d] = e.position[d] - (e.radius * e.scale);
 					}
 					if (e.position[d] + e.radius > entities_static_max_coords[d]) {
-						entities_static_max_coords[d] = e.position[d] + (e.radius * e.scale[d]);
+						entities_static_max_coords[d] = e.position[d] + (e.radius * e.scale);
 					}
 				}
 
@@ -208,6 +218,8 @@ void level_save(struct level *level, string name) {
 		} else {
 			//handle dynamic triangles
 		}
+
+		cout << "starting load texture mapping file" << std::endl;
 
 		//-----------------------------------//
 		//LOAD TRIANGLES TEXTURE MAPPING FILE//
@@ -319,7 +331,7 @@ void level_save(struct level *level, string name) {
 	grid_init(&bf_dynamic, &entity_grid, struct vector3<float>(10.0f, 10.0f, 10.0f), struct vector3<float>(1.0f, 1.0f, 1.0f), struct vector3<float>(5.0f, 5.0f, 5.0f), 0);
 	for (int e = 0; e < entities_static.size(); e++) {
 		struct vector3<float> e_radius = { entities_static[e].radius, entities_static[e].radius, entities_static[e].radius };
-		struct vector3<float> s_radius = { entities_static[e].radius * entities_static[e].scale[0], entities_static[e].radius * entities_static[e].scale[1], entities_static[e].radius * entities_static[e].scale[2] };
+		struct vector3<float> s_radius = e_radius * entities_static[e].scale;
 
 		cout << "s_radius: " << s_radius[0] << std::endl;
 		
@@ -327,7 +339,7 @@ void level_save(struct level *level, string name) {
 		if (s_radius[1] > entities_static[e].radius)entities_static[e].radius = s_radius[1];
 		if (s_radius[2] > entities_static[e].radius)entities_static[e].radius = s_radius[2];
 		
-		grid_object_add(&bf_dynamic, bf_dynamic.data, entity_grid.position_in_bf, entities_static[e].position, entities_static[e].scale, -e_radius, e_radius, e);
+		grid_object_add(&bf_dynamic, bf_dynamic.data, entity_grid.position_in_bf, entities_static[e].position, struct vector3<float>(entities_static[e].scale, entities_static[e].scale, entities_static[e].scale), -e_radius, e_radius, e);
 
 		cout << "grid index: " << grid_get_index(bf_dynamic.data, entity_grid.position_in_bf, entities_static[e].position) << std::endl;
 	}

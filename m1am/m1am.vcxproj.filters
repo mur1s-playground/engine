@@ -51,6 +51,9 @@
     <ClCompile Include="Gun.cpp">
       <Filter>Headerdateien</Filter>
     </ClCompile>
+    <ClCompile Include="Skeleton.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitField.h">
@@ -105,6 +108,9 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="Gun.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="Skeleton.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

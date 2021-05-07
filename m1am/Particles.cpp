@@ -11,7 +11,7 @@ vector<struct particle>		particles = vector<struct particle>();
 void particle_add(unsigned int particle_entity_id, struct vector3<float> position, struct vector3<float> orientation, float particle_speed) {
 	struct particle p;
 
-	unsigned int dyn_entity_id = entity_dynamic_add(particle_entity_id, position, orientation, struct vector3<float>(1.0f, 1.0f, 1.0f));
+	unsigned int dyn_entity_id = entity_dynamic_add(particle_entity_id, position, orientation, 1.0f);
 	
 	p.dyn_entity_id = dyn_entity_id;
 
@@ -37,6 +37,8 @@ void particles_tick() {
 
 		struct vector3<float> position_next = physics_p[dyn_entity_id].position_next;
 		
+		//cout << position_next[0] << " " << position_next[1] << " " << position_next[2] << std::endl;
+
 		if (physics_p[dyn_entity_id].hit_entity_id != UINT_MAX) {
 			//cout << "hit" << std::endl;
 		}

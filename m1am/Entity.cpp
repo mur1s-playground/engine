@@ -27,7 +27,7 @@ void entity_dynamic_preallocate(unsigned int preallocate_count) {
 	entity_dynamic_free_preallocate(preallocate_count);
 }
 
-unsigned int entity_dynamic_add(unsigned int static_entity_id, struct vector3<float> position, struct vector3<float> orientation, struct vector3<float> scale) {
+unsigned int entity_dynamic_add(unsigned int static_entity_id, struct vector3<float> position, struct vector3<float> orientation, float scale) {
 	struct entity* entities = (struct entity *)&level_current->bf_static.data[level_current->entities_static_pos];
 	struct entity* static_entity = &entities[static_entity_id];
 	entities_dynamic = (struct entity *)&bf_dynamic.data[bf_dynamic_m.entities_dynamic_position_in_bf];
@@ -63,18 +63,14 @@ unsigned int entity_dynamic_add(unsigned int static_entity_id, struct vector3<fl
 	entities_dynamic[e].position = position;
 	entities_dynamic[e].orientation = orientation;
 
-	float max_s = entities_dynamic[e].scale[0];
-	if (entities_dynamic[e].scale[1] > max_s) max_s = entities_dynamic[e].scale[1];
-	if (entities_dynamic[e].scale[2] > max_s) max_s = entities_dynamic[e].scale[2];
-
-	float radius_us = entities_dynamic[e].radius / max_s;
+	float radius_us = entities_dynamic[e].radius / entities_dynamic[e].scale;
 	struct vector3<float> e_radius = { radius_us, radius_us, radius_us };
 
 	entities_dynamic[e].scale = scale;
 
-	grid_object_add(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[e].position, entities_dynamic[e].scale, -e_radius, e_radius, level_current->entities_static_count + e);
+	grid_object_add(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[e].position, struct vector3<float>(entities_dynamic[e].scale, entities_dynamic[e].scale, entities_dynamic[e].scale), -e_radius, e_radius, level_current->entities_static_count + e);
 	//improve
-	bit_field_invalidate_bulk(&bf_dynamic, bf_dynamic_m.entities_dynamic_position_in_bf - 1, (unsigned int) ceilf((bf_dynamic_m.entities_dynamic_allocated_count * sizeof(struct entity))/(float) sizeof(unsigned int)));
+	bit_field_invalidate_bulk(&bf_dynamic, bf_dynamic_m.entities_dynamic_position_in_bf, (unsigned int) ceilf((bf_dynamic_m.entities_dynamic_allocated_count * sizeof(struct entity))/(float) sizeof(unsigned int)));
 	return e;
 }
 
@@ -84,14 +80,10 @@ void entity_dynamic_remove(unsigned int entity_dynamic_id, bool from_grid) {
 	if (from_grid) {
 		unsigned int e = entity_dynamic_id;
 
-		float max_s = entities_dynamic[e].scale[0];
-		if (entities_dynamic[e].scale[1] > max_s) max_s = entities_dynamic[e].scale[1];
-		if (entities_dynamic[e].scale[2] > max_s) max_s = entities_dynamic[e].scale[2];
-
-		float radius_us = entities_dynamic[e].radius / max_s;
+		float radius_us = entities_dynamic[e].radius / entities_dynamic[e].scale;
 		struct vector3<float> e_radius = { radius_us, radius_us, radius_us };
 
-		grid_object_remove(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[e].position, entities_dynamic[e].scale, -e_radius, e_radius, level_current->entities_static_count + e);
+		grid_object_remove(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[e].position, struct vector3<float>(entities_dynamic[e].scale, entities_dynamic[e].scale, entities_dynamic[e].scale), -e_radius, e_radius, level_current->entities_static_count + e);
 	}
 
 	entities_dynamic[entity_dynamic_id].radius = 0.0f;
@@ -102,14 +94,10 @@ void entity_dynamic_remove(unsigned int entity_dynamic_id, bool from_grid) {
 void entity_dynamic_move(unsigned int entity_dynamic_id, struct vector3<float> position_to) {
 	unsigned int e = entity_dynamic_id;
 
-	float max_s = entities_dynamic[e].scale[0];
-	if (entities_dynamic[e].scale[1] > max_s) max_s = entities_dynamic[e].scale[1];
-	if (entities_dynamic[e].scale[2] > max_s) max_s = entities_dynamic[e].scale[2];
-
-	float radius_us = entities_dynamic[e].radius / max_s;
+	float radius_us = entities_dynamic[e].radius / entities_dynamic[e].scale;
 	struct vector3<float> e_radius = { radius_us, radius_us, radius_us };
 
-	grid_object_remove(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[entity_dynamic_id].position, entities_dynamic[entity_dynamic_id].scale, -e_radius, e_radius, level_current->entities_static_count + entity_dynamic_id);
+	grid_object_remove(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[entity_dynamic_id].position, struct vector3<float>(entities_dynamic[e].scale, entities_dynamic[e].scale, entities_dynamic[e].scale), -e_radius, e_radius, level_current->entities_static_count + entity_dynamic_id);
 	entities_dynamic[entity_dynamic_id].position = position_to;
-	grid_object_add(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[entity_dynamic_id].position, entities_dynamic[entity_dynamic_id].scale, -e_radius, e_radius, level_current->entities_static_count + entity_dynamic_id);
+	grid_object_add(&bf_dynamic, bf_dynamic.data, bf_dynamic_m.entity_grid_position_in_bf, entities_dynamic[entity_dynamic_id].position, struct vector3<float>(entities_dynamic[e].scale, entities_dynamic[e].scale, entities_dynamic[e].scale), -e_radius, e_radius, level_current->entities_static_count + entity_dynamic_id);
 }

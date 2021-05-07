@@ -11,6 +11,8 @@
 #include "Particles.h"
 #include "Physics.h"
 #include "Gun.h"
+#include "Matrix3.h"
+#include "Skeleton.h"
 
 #include "SDLShow.h"
 #include "lodepng.h"
@@ -67,18 +69,15 @@ int main(int argc, char* argv[]) {
 
 	float physics_time = 0.0f;
 
+	unsigned test_id = entity_dynamic_add(0, struct vector3<float>(0.0f, 0.0f, 0.5f), struct vector3<float>(0.0f, 0.0f, 0.0f), 1.0f);
+
+	unsigned long long tick = 0;
+
 	while (true) {
 		long tf = clock();
 	
 		bit_field_update_device(&bf_dynamic, 0);
-		/*
-		render_launch(	camera_player.resolution[0] * camera_player.resolution[1],
-						camera_player_image_device[0],
-						bf_dynamic.device_data[0], camera_player_pos, 1,
-						l.bf_static.device_data[0], l.entities_static_pos, l.entities_static_grid_pos,
-						l.triangles_static_pos, l.triangles_static_grid_pos,
-						l.textures_map_static_pos, l.textures_static_pos);
-		*/
+		
 		players_render();
 
 		sdl_update_frame((void*)players_composed, capture_mouse);
@@ -101,11 +100,7 @@ int main(int argc, char* argv[]) {
 		while (SDL_PollEvent(&sdl_event) != 0) {
 			if (sdl_event.type == SDL_MOUSEWHEEL) {
 				bool up = sdl_event.wheel.y > 0;
-				if (up) {
-					players[player_selected_id].gun_active_id = 1;
-				} else {
-					players[player_selected_id].gun_active_id = 0;
-				}
+				player_switch_gun(player_selected_id, up);
 			}
 			
 			if (sdl_event.type == SDL_KEYDOWN) {
@@ -130,8 +125,7 @@ int main(int argc, char* argv[]) {
 				} else if (sdl_event.key.keysym.sym == keybind_rotate) {
 					player_rotate_queue++;
 				} else if (sdl_event.key.keysym.sym == keybind_toggle_firemode) {
-					gun_toggle_firemode(&players[player_selected_id].gun[0]);
-					cout << "toggling" << std::endl;
+					gun_toggle_firemode(&players[player_selected_id].gun[players[player_selected_id].gun_active_id]);
 				}
 			}
 
@@ -155,43 +149,41 @@ int main(int argc, char* argv[]) {
 
 				if (sdl_event.type == SDL_MOUSEBUTTONDOWN && sdl_event.button.button == SDL_BUTTON(SDL_BUTTON_LEFT)) {
 					shooting = true;
-					cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
 				}
 
 				if (sdl_event.type == SDL_MOUSEBUTTONUP && sdl_event.button.button == SDL_BUTTON(SDL_BUTTON_LEFT)) {
 					shooting = false;
-					cameras = (struct camera*)&bf_dynamic.data[cameras_position_in_bf];
 				}
 				p = &cameras[player_selected_id];
 
+				vector3<float> orientation_d = { 0.0f, 0.0f, 0.0f };
+
 				if (sdl_event.type == SDL_MOUSEMOTION) {
-					p->orientation = {
-						p->orientation[0] + (sdl_event.motion.y - mouse_position[1]) * mouse_y_invert * mouse_sensitivity[1] * 1e-3f,
-						p->orientation[1],
-						p->orientation[2] + (sdl_event.motion.x - mouse_position[0]) * mouse_sensitivity[0] * 1e-3f,
+					orientation_d = {
+						(sdl_event.motion.y - mouse_position[1]) * mouse_y_invert * mouse_sensitivity[1] * 1e-3f,
+						0.0f,
+						(sdl_event.motion.x - mouse_position[0]) * mouse_sensitivity[0] * 1e-3f,
 					};
 				}
 
-				float o_s = sinf(-p->orientation[2] + M_PI / 2.0);
-				float o_c = cosf(-p->orientation[2] + M_PI / 2.0);
-
-				float dx = (-move_left + move_right) * move_speed * (float)td;
-				float dy = (+move_forwards - move_back) * move_speed * (float)td;
-
-				struct vector2<float> move_rot = {
-					(dx * o_c - dy * o_s),
-					(dx * o_s + dy * o_c)
+				vector3<float> position_d = {
+					(-move_left + move_right)* move_speed * (float)td,
+					(+move_forwards - move_back)* move_speed * (float)td,
+					0.0f,
 				};
-
-				p->position = {
-						p->position[0] + move_rot[0],
-						p->position[1] + move_rot[1],
-						p->position[2]
-				};
-				bit_field_invalidate_bulk(&bf_dynamic, cameras_position_in_bf, cameras_size_in_bf);
+				
+				camera_move(player_selected_id, position_d, orientation_d);
+				entity_dynamic_move(players[player_selected_id].entity_id - level_current->entities_static_count, p->position);
+				entities_dynamic[players[player_selected_id].entity_id - level_current->entities_static_count].orientation = { 0.0f, 0.0f, p->orientation[2] };
 			}
-		
 		}
+		struct skeleton* sk = (struct skeleton*)&bf_dynamic.data[entities_dynamic[players[0].entity_id - level_current->entities_static_count].skeleton_id];
+		skeleton_rotate_bone(sk, 0, struct vector2<float>(tick * 0.01f, 0.0f));
+		
+		entities_dynamic[test_id].orientation[2] += 0.01f;
+		bit_field_invalidate_bulk(&bf_dynamic, bf_dynamic_m.entities_dynamic_position_in_bf, (bf_dynamic_m.entities_dynamic_allocated_count * sizeof(struct entity)) / (float) sizeof(unsigned int));
+		//cout << cameras[player_selected_id].orientation[0] << " " << cameras[player_selected_id].orientation[1] << " " << cameras[player_selected_id].orientation[2] << " " << std::endl;
+		//struct vector3<float> camera_to_entity_orientation = { 1.0f, 0.0f, 1.0f };
 		gun_tick(&players[player_selected_id].gun[players[player_selected_id].gun_active_id], cameras[player_selected_id].position, cameras[player_selected_id].orientation, shooting);
 		physics_invalidate_all();
 
@@ -201,7 +193,8 @@ int main(int argc, char* argv[]) {
 
 		bit_field_update_host(&bf_dynamic, 0);
 		particles_tick();
-		
+
+		tick++;
 	}
 
 	return 0;

@@ -1,7 +1,7 @@
 #pragma once
 
 void render_launch(
-	const unsigned int* bf_dynamic, const unsigned int cameras_position, const unsigned int camera_c, const unsigned int camera_id, const unsigned int entity_grid_position, const unsigned int entities_dynamic_position,
+	const unsigned int* bf_dynamic, const unsigned int cameras_position, const unsigned int camera_c, const unsigned int camera_id, const unsigned int players_pos, const unsigned int entity_grid_position, const unsigned int entities_dynamic_position,
 	const unsigned int* bf_static, const unsigned int entities_static_position, const unsigned int entities_static_count,
 	const unsigned int triangles_static_position, const unsigned int triangles_static_grid_position,
 	const unsigned int textures_map_static_position, const unsigned int textures_static_position);

@@ -42,14 +42,14 @@ bool util_starts_with(const string& str, const string& with) {
 	return strcmp(tmp.c_str(), with.c_str()) == 0;
 }
 
-vector<string>	util_split(const std::string& str) {
+vector<string>	util_split(const std::string& str, const std::string& separator) {
 	vector<string> result;
 	int start = 0;
-	int end = str.find_first_of(",", start);
+	int end = str.find_first_of(separator, start);
 	while (end != std::string::npos) {
 		result.push_back(str.substr(start, end - start));
 		start = end + 1;
-		end = str.find_first_of(",", start);
+		end = str.find_first_of(separator, start);
 	}
 	result.push_back(str.substr(start));
 	return result;

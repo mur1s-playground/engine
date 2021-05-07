@@ -76,7 +76,7 @@ __global__ void physics_collision(const float dt, unsigned int* bf_dynamic, cons
 		p->acceleration = { 0.0f, 0.0f, 0.0f };
 
 		float velocity_len = length(p->velocity);
-		/* BROKEN */
+		
 		if (velocity_len > 0) {
 			struct vector3<float> grid_traversal_position = e_->position;
 			struct vector3<float> grid_traversal_direction = p->velocity/velocity_len;
@@ -129,32 +129,18 @@ __global__ void physics_collision(const float dt, unsigned int* bf_dynamic, cons
 
 						vector3<float> tg_grid_pos = r_intersect - entity_current->position;
 
-						vector3<float> scale_rot = entity_current->scale;
-						scale_rot = rotate_x(scale_rot, entity_current->orientation[0]);
-						scale_rot = rotate_y(scale_rot, entity_current->orientation[1]);
-						scale_rot = rotate_z(scale_rot, entity_current->orientation[2]);
-						scale_rot = {
-							abs(scale_rot[0]),
-							abs(scale_rot[1]),
-							abs(scale_rot[2]),
-						};
+						tg_grid_pos = tg_grid_pos / entity_current->scale;
 
-						tg_grid_pos = { tg_grid_pos[0] / scale_rot[0], tg_grid_pos[1] / scale_rot[1], tg_grid_pos[2] / scale_rot[2] };
+						vector3<float> tg_grid_dir = grid_traversal_direction / entity_current->scale;
 
-						vector3<float> tg_grid_dir = {
-							grid_traversal_direction[0] / scale_rot[0],
-							grid_traversal_direction[0] / scale_rot[1],
-							grid_traversal_direction[0] / scale_rot[2]
-						};
+						tg_grid_pos = rotate_x(tg_grid_pos, -entity_current->orientation[0]);
+						tg_grid_dir = rotate_x(tg_grid_dir, -entity_current->orientation[0]);
 
-						tg_grid_pos = rotate_x(tg_grid_pos, entity_current->orientation[0]);
-						tg_grid_dir = rotate_x(tg_grid_dir, entity_current->orientation[0]);
+						tg_grid_pos = rotate_y(tg_grid_pos, -entity_current->orientation[1]);
+						tg_grid_dir = rotate_y(tg_grid_dir, -entity_current->orientation[1]);
 
-						tg_grid_pos = rotate_y(tg_grid_pos, entity_current->orientation[1]);
-						tg_grid_dir = rotate_y(tg_grid_dir, entity_current->orientation[1]);
-
-						tg_grid_pos = rotate_z(tg_grid_pos, entity_current->orientation[2]);
-						tg_grid_dir = rotate_z(tg_grid_dir, entity_current->orientation[2]);
+						tg_grid_pos = rotate_z(tg_grid_pos, -entity_current->orientation[2]);
+						tg_grid_dir = rotate_z(tg_grid_dir, -entity_current->orientation[2]);
 
 						struct vector3<float> tg_grid_traversal_position = tg_grid_pos;
 						int tg_grid_current_idx = grid_get_index(bf_static, entity_current->triangles_grid_id, tg_grid_pos);
@@ -198,8 +184,12 @@ __global__ void physics_collision(const float dt, unsigned int* bf_dynamic, cons
 									}
 									r = a / b;
 
-									//printf("%f\n", r);
+									//if (abs(r + lambda) < e_->radius) {
+
+									//} else
 									if (r + lambda < 0.0 || r + lambda >= closest) {
+										//printf("r %f, lambda %f, %f %f %f\n", r, lambda, e_->position[0], e_->position[1], e_->position[2]);
+										
 										continue;
 									}
 
@@ -217,16 +207,20 @@ __global__ void physics_collision(const float dt, unsigned int* bf_dynamic, cons
 									float s, ts;
 									s = (uv * wv - vv * wu) / D;
 									if (s < 0.0 || s > 1.0) {
+										//printf("not in\n");
 										continue;
 									}
 									ts = (uv * wu - uu * wv) / D;
 									if (ts < 0.0 || (s + ts) > 1.0) {
+										//printf("not in\n");
 										continue;
 									}
 
 									r += lambda;
 
-									//if (r > velocity_len) continue;
+									//if (r - e_->radius > velocity_len) continue;
+									//printf("hit");
+									//printf("%f\n", r - velocity_len);
 
 									closest = r;
 									closest_id_entity = entity_id;
@@ -261,6 +255,7 @@ __global__ void physics_collision(const float dt, unsigned int* bf_dynamic, cons
 			}
 
 			if (closest_id_entity != UINT_MAX) {
+				p->position_next = e_->position - -(p->velocity / velocity_len * closest);
 				p->hit_entity_id = closest_id_entity;
 				p->hit_triangle_id = closest_id_triangle;
 			} else {

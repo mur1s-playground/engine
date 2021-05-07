@@ -16,6 +16,9 @@ struct player_section {
 	vector2<int>	resolution;
 };
 
+extern unsigned int				players_size_in_bf;
+extern unsigned int				players_position_in_bf;
+
 extern struct player			*players;
 extern unsigned int				player_squadsize;
 extern unsigned int				player_squadcount;
@@ -28,3 +31,5 @@ extern int						player_rotate_queue;
 
 void players_init();
 void players_render();
+
+void player_switch_gun(unsigned int player_id, unsigned int gun_id);

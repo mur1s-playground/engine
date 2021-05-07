@@ -40,9 +40,9 @@ __host__ __device__ auto operator*(const matrix3<T> m1, const matrix3<T> m2) -> 
 	vector3<T> m1_v_r0{ m1[0][0], m1[1][0], m1[2][0] };
 	vector3<T> m1_v_r1{ m1[0][1], m1[1][1], m1[2][1] };
 	vector3<T> m1_v_r2{ m1[0][2], m1[1][2], m1[2][2] };
-	return { { dot(m1_v_r0, m2[0]), dot(m1_v_r1, m2[0]), dot(m1_v_r3, m2[0]) },
-				{ dot(m1_v_r0, m2[1]), dot(m1_v_r1, m2[1]), dot(m1_v_r3, m2[1]) },
-				{ dot(m1_v_r0, m2[2]), dot(m1_v_r1, m2[2]), dot(m1_v_r3, m2[2]) } };
+	return { { dot(m1_v_r0, m2[0]), dot(m1_v_r1, m2[0]), dot(m1_v_r2, m2[0]) },
+				{ dot(m1_v_r0, m2[1]), dot(m1_v_r1, m2[1]), dot(m1_v_r2, m2[1]) },
+				{ dot(m1_v_r0, m2[2]), dot(m1_v_r1, m2[2]), dot(m1_v_r2, m2[2]) } };
 }
 
 template<typename T>
